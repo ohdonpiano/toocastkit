@@ -7,9 +7,13 @@
 //
 
 #import <Foundation/Foundation.h>
+#import "TDMulticastConfig.h"
 #import "TCPServer.h"
 
-@interface TDMulticast : NSObject <TCPServerDelegate> {
+// NOTIFICATION CENTER NAMES
+#define kTDMulticastDiscoverServicesFinished @"kTDMulticastDiscoverServicesFinished"
+
+@interface TDMulticast : NSObject <TCPServerDelegate, NSNetServiceBrowserDelegate> {
         
     /**
      *	@brief	instance of TCPServer for Announce feature
@@ -17,6 +21,9 @@
     TCPServer *_server;
     
     //DISCOVER
+    
+    NSString *_ownName;
+	NSNetService *_ownEntry;
     
     /**
      *	@brief	the array of discovered services
@@ -31,9 +38,11 @@
 	/**
      *	@brief	current discovered net service
      */
-    NSNetService *_netService;
+    NSNetService *_currentResolve;
 
 }
+
+@property (nonatomic, readonly) NSMutableArray *services;    
 
 #pragma mark Kit Entry Point
 
@@ -49,19 +58,25 @@
 #pragma mark Announce
 
 /**
- *	@brief	Announce the app on the LAN with a service to offer
- *
- *	@param 	appName 	the application name, e.g. "TooConsole"
- *	@param 	serviceName 	the service name, e.g. "consoleShare"
+ *	@brief	Announce the app on the LAN with the device name
  */
-- (void) announceWithAppName:(NSString*)appName serviceName:(NSString*)serviceName;
+- (void) announce;
+
+
+/**
+ *	@brief	Announce the app on the LAN with a specific name
+ *
+ *	@param 	shownName 	the name that will be seen by others
+ */
+- (void) announceWithName:(NSString*)shownName;
 
 #pragma mark Discover
+
+- (BOOL) discoverServices;
 
 /**
  *	@brief	discover TDMulticast Announced servers on the LAN
  */
-- (void) discoverOverLAN;
-
+- (BOOL) discoverServicesWithIdentifier:(NSString*)identifier inDomain:(NSString *)domain;
 
 @end
