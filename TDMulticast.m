@@ -9,7 +9,27 @@
 #import "TDMulticast.h"
 #import "TCPServer.h"
 
+@interface TDMulticast()
+@property (nonatomic, retain, readwrite) NSNetService *ownEntry;
+@property (nonatomic, retain, readwrite) NSNetServiceBrowser *netServiceBrowser;
+@property (nonatomic, retain, readwrite) NSNetService *currentResolve;
+@property (nonatomic, retain, readwrite) NSTimer *timer;
+@property (nonatomic, assign, readwrite) BOOL needsActivityIndicator;
+@property (nonatomic, assign, readwrite) BOOL initialWaitOver;
+
+- (void)stopCurrentResolve;
+
+@end
+
 @implementation TDMulticast
+
+@synthesize ownEntry = _ownEntry;
+@synthesize currentResolve = _currentResolve;
+@synthesize netServiceBrowser = _netServiceBrowser;
+@synthesize services = _services;
+@synthesize needsActivityIndicator = _needsActivityIndicator;
+@dynamic timer;
+@synthesize initialWaitOver = _initialWaitOver;
 
 #pragma mark Kit Entry Point
 
@@ -19,6 +39,7 @@
         _server = [[TCPServer alloc] init];
         _server.delegate = self;
         
+        _ownName = [[UIDevice currentDevice] name];
         _services = [[NSMutableArray alloc] init];
     }
     return self;
@@ -34,26 +55,57 @@ static TDMulticast* INSTANCE;
 
 #pragma mark Utilities
 
-- (void) announceWithAppName:(NSString*)appName serviceName:(NSString*)serviceName {
-    [_server enableBonjourWithDomain:nil applicationProtocol:appName name:serviceName];
+#pragma mark Announce
+
+- (void) announce {
+    [self announceWithName:_ownName];
+}
+
+- (void) announceWithName:(NSString*)shownName; {
+    [_server enableBonjourWithDomain:kMulticastDomain applicationProtocol:[TCPServer bonjourTypeFromIdentifier:kMulticastIdentifier] name:shownName];
     NSError *error = nil;
     if (![_server start:&error]) {
         NSLog(@"%s ERROR: %@",__PRETTY_FUNCTION__,error);
     }
 }
 
-- (void) discover
+#pragma mark Discover
+
+- (void)stopCurrentResolve {
+	[self.currentResolve stop];
+	self.currentResolve = nil;
+}
+
+- (BOOL) discoverServices {
+    return [self discoverServicesWithIdentifier:kMulticastIdentifier inDomain:kMulticastDomain];
+}
+
+// Creates an NSNetServiceBrowser that searches for services of a particular type in a particular domain.
+// If a service is currently being resolved, stop resolving it and stop the service browser from
+// discovering other services.
+- (BOOL) discoverServicesWithIdentifier:(NSString*)identifier inDomain:(NSString *)domain {
+	
+	// cleaning code
+	[self stopCurrentResolve];
+	[self.netServiceBrowser stop];
+	[self.services removeAllObjects];
+    
+	self.netServiceBrowser = [[NSNetServiceBrowser alloc] init];    
+	_netServiceBrowser.delegate = self;
+	[self.netServiceBrowser searchForServicesOfType:[TCPServer bonjourTypeFromIdentifier:identifier] inDomain:domain];
+	return YES;
+}
 
 #pragma mark - TCPServer delegate
 
 - (void) serverDidEnableBonjour:(TCPServer*)server withName:(NSString*)name {
-    
+    NSLog(@"%s serviceName: %@",__PRETTY_FUNCTION__,name);
 }
 - (void) server:(TCPServer*)server didNotEnableBonjour:(NSDictionary *)errorDict {
-    
+    NSLog(@"%s",__PRETTY_FUNCTION__); 
 }
 - (void) didAcceptConnectionForServer:(TCPServer*)server inputStream:(NSInputStream *)istr outputStream:(NSOutputStream *)ostr {
-    
+    NSLog(@"%s",__PRETTY_FUNCTION__);
 }
 
 #pragma mark NetServiceBrowser Delegate
@@ -72,14 +124,14 @@ static TDMulticast* INSTANCE;
 	// If moreComing is NO, it means that there are no more messages in the queue from the Bonjour daemon, so we should update the UI.
 	// When moreComing is set, we don't update the UI so that it doesn't 'flash'.
 	if (!moreComing) {
-		[self sortAndUpdateUI];
+		[[NSNotificationCenter defaultCenter] postNotificationName:kTDMulticastDiscoverServicesFinished object:self userInfo:nil];
 	}
 }	
 
 - (void)netServiceBrowser:(NSNetServiceBrowser *)netServiceBrowser didFindService:(NSNetService *)service moreComing:(BOOL)moreComing {
     
 	// If a service came online, add it to the list and update the table view if no more events are queued.
-	if (!service) {
+	if (nil == service) {
 		return;
 	}
 	NSRange range;
@@ -96,28 +148,26 @@ static TDMulticast* INSTANCE;
 	// If moreComing is NO, it means that there are no more messages in the queue from the Bonjour daemon, so we should update the UI.
 	// When moreComing is set, we don't update the UI so that it doesn't 'flash'.
 	if (!moreComing) {
-		[self sortAndUpdateUI];
-	}
+        [[NSNotificationCenter defaultCenter] postNotificationName:kTDMulticastDiscoverServicesFinished object:self userInfo:nil];
+	
+    }
 }	
 
 // This should never be called, since we resolve with a timeout of 0.0, which means indefinite
 - (void)netService:(NSNetService *)sender didNotResolve:(NSDictionary *)errorDict {
 	[self stopCurrentResolve];
-	[self.tableView reloadData];
 }
 
 - (void)netServiceDidResolveAddress:(NSNetService *)service {
 	assert(service == self.currentResolve);
 	
-	[service retain];
 	[self stopCurrentResolve];
 	
-	[self.delegate browserViewController:self didResolveInstance:service];
-	[service release];
+//	[self.delegate browserViewController:self didResolveInstance:service];
 }
 
 - (void)cancelAction {
-	[self.delegate browserViewController:self didResolveInstance:nil];
+	
 }
 
 @end
