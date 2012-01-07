@@ -1,0 +1,10 @@
+Objectives of the Multicast Kit
+===============================================================================
+
+Simply:
+
+- announce : the App announces its services over LAN using 
+
+Depentencies
+-------------------------------------------------------------------------------
+CFNetwork.framework
