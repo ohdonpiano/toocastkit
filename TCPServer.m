@@ -27,6 +27,7 @@ NSString * const TCPServerErrorDomain = @"TCPServerErrorDomain";
 
 - (void)dealloc {
     [self stop];
+    [super dealloc];
 }
 
 - (void)handleNewConnectionFromAddress:(NSData *)addr inputStream:(NSInputStream *)istr outputStream:(NSOutputStream *)ostr {
@@ -41,7 +42,7 @@ NSString * const TCPServerErrorDomain = @"TCPServerErrorDomain";
 // invocation on TCPServer.
 static void TCPServerAcceptCallBack(CFSocketRef socket, CFSocketCallBackType type, CFDataRef address, const void *data, void *info) {
 	
-    TCPServer *server = (__bridge TCPServer *)info;
+    TCPServer *server = (TCPServer *)info;
     if (kCFSocketAcceptCallBack == type) { 
         // for an AcceptCallBack, the data parameter is a pointer to a CFSocketNativeHandle
         CFSocketNativeHandle nativeSocketHandle = *(CFSocketNativeHandle *)data;
@@ -57,7 +58,7 @@ static void TCPServerAcceptCallBack(CFSocketRef socket, CFSocketCallBackType typ
         if (readStream && writeStream) {
             CFReadStreamSetProperty(readStream, kCFStreamPropertyShouldCloseNativeSocket, kCFBooleanTrue);
             CFWriteStreamSetProperty(writeStream, kCFStreamPropertyShouldCloseNativeSocket, kCFBooleanTrue);
-            [server handleNewConnectionFromAddress:peer inputStream:(__bridge NSInputStream *)readStream outputStream:(__bridge NSOutputStream *)writeStream];
+            [server handleNewConnectionFromAddress:peer inputStream:(NSInputStream *)readStream outputStream:(NSOutputStream *)writeStream];
         } else {
             // on any failure, need to destroy the CFSocketNativeHandle 
             // since we are not going to use it any more
@@ -73,7 +74,7 @@ static void TCPServerAcceptCallBack(CFSocketRef socket, CFSocketCallBackType typ
 }
 
 - (BOOL)start:(NSError **)error {
-    CFSocketContext socketCtxt = {0, NULL, NULL, NULL, NULL};
+    CFSocketContext socketCtxt = {0, self, NULL, NULL, NULL};
     _ipv4socket = CFSocketCreate(kCFAllocatorDefault, PF_INET, SOCK_STREAM, IPPROTO_TCP, kCFSocketAcceptCallBack, (CFSocketCallBack)&TCPServerAcceptCallBack, &socketCtxt);
 	
     if (NULL == _ipv4socket) {
@@ -97,7 +98,7 @@ static void TCPServerAcceptCallBack(CFSocketRef socket, CFSocketCallBackType typ
     addr4.sin_addr.s_addr = htonl(INADDR_ANY);
     NSData *address4 = [NSData dataWithBytes:&addr4 length:sizeof(addr4)];
 	
-    if (kCFSocketSuccess != CFSocketSetAddress(_ipv4socket, (__bridge CFDataRef)address4)) {
+    if (kCFSocketSuccess != CFSocketSetAddress(_ipv4socket, (CFDataRef)address4)) {
         if (error) *error = [[NSError alloc] initWithDomain:TCPServerErrorDomain code:kTCPServerCouldNotBindToIPv4Address userInfo:nil];
         if (_ipv4socket) CFRelease(_ipv4socket);
         _ipv4socket = NULL;
@@ -106,7 +107,7 @@ static void TCPServerAcceptCallBack(CFSocketRef socket, CFSocketCallBackType typ
     
 	// now that the binding was successful, we get the port number 
 	// -- we will need it for the NSNetService
-	NSData *addr = (__bridge NSData *)CFSocketCopyAddress(_ipv4socket);
+	NSData *addr = [(NSData *)CFSocketCopyAddress(_ipv4socket) autorelease];
 	memcpy(&addr4, [addr bytes], [addr length]);
 	self.port = ntohs(addr4.sin_port);
 	
@@ -169,14 +170,14 @@ static void TCPServerAcceptCallBack(CFSocketRef socket, CFSocketCallBackType typ
  See http://developer.apple.com/networking/bonjour/faq.html for more information.
  */
 - (void)netServiceDidPublish:(NSNetService *)sender {
-	
+	NSLog(@"%s",__PRETTY_FUNCTION__);
     if (self.delegate && [self.delegate respondsToSelector:@selector(serverDidEnableBonjour:withName:)]) {
 		[self.delegate serverDidEnableBonjour:self withName:sender.name];
 	}
 }
 
 - (void)netService:(NSNetService *)sender didNotPublish:(NSDictionary *)errorDict {
-	
+	NSLog(@"%s",__PRETTY_FUNCTION__);
 //	[super netService:sender didNotPublish:errorDict];
 	if (self.delegate && [self.delegate respondsToSelector:@selector(server:didNotEnableBonjour:)])
 		[self.delegate server:self didNotEnableBonjour:errorDict];

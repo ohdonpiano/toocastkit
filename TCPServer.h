@@ -30,7 +30,7 @@ typedef enum {
 	NSNetService* _netService;
 	
 @private
-	id _delegate;
+	id<NSNetServiceDelegate,TCPServerDelegate> _delegate;
     uint16_t _port;
 	CFSocketRef _ipv4socket;	
 }
@@ -40,9 +40,9 @@ typedef enum {
 - (NSString*) name;
 - (BOOL)start:(NSError **)error;
 - (BOOL)stop;
-- (BOOL) enableBonjourWithDomain:(NSString*)domain applicationProtocol:(NSString*)protocol name:(NSString*)name; //Pass "nil" for the default local domain - Pass only the application protocol for "protocol" e.g. "myApp"
+- (BOOL) enableBonjourWithDomain:(NSString*)domain applicationProtocol:(NSString*)protocol name:(NSString*)name;
 
-@property(nonatomic,retain) id<TCPServerDelegate> delegate;
+@property(nonatomic,retain) id<NSNetServiceDelegate,TCPServerDelegate> delegate;
 
 + (NSString*) bonjourTypeFromIdentifier:(NSString*)identifier;
 
