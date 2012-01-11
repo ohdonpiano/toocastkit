@@ -3,7 +3,13 @@ Objectives of the Multicast Kit
 
 Simply:
 
-- announce : the App announces its services over LAN using 
+- announce : the App announces its services over LAN 
+
+- discover : the App searches for services over LAN and allows to choose one of them.
+
+- connect/disconnect : the announcing server connects to the discovering client
+
+- send/receive : the client and the server can exchange Foundation objects easily
 
 Depentencies
 -------------------------------------------------------------------------------
