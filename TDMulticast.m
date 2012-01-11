@@ -405,8 +405,8 @@ static TDMulticast* INSTANCE;
                 
                 if (nil != element)
                     [self didReceiveElement:element fromPeer:peerName];
-                else
-                    NSLog(@"%s NSStreamEventHasBytesAvailable ERROR: %@", __PRETTY_FUNCTION__, errorStr);
+//                else
+//                    NSLog(@"%s NSStreamEventHasBytesAvailable ERROR: %@", __PRETTY_FUNCTION__, errorStr);
             }
              
         }
